@@ -1,0 +1,25 @@
+{
+  "note": "byte-exact vectors from openziti/secretstream@0ed8a363 + kx. key=client_tx. ciphers are sequential Push(TagMessage), nonce evolves across frames.",
+  "client_seed_hex": "1112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30",
+  "server_seed_hex": "42434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f6061",
+  "client_sk_hex": "c1e6b2d32727a15e004329f55247720b423c6afa87ac9d27d231d35cd69713d4",
+  "client_pk_hex": "52289e809a9a9c46d87046d85140d4c64058a61bdcadbbc7e10201aff335885f",
+  "server_sk_hex": "be2e9039b57a6e39a72c96f91c4d570ea54bb4c5933fc3e6ee811d97b82f8cc9",
+  "server_pk_hex": "71d0335bbab361b33ce40f29f37c9181087b7452f6239ecb7096ef343b16d951",
+  "client_rx_hex": "c64bc47b5b067dbb8b48cb73b20827ae32a1d2955c819b73687623b15d529373",
+  "client_tx_hex": "e8874e2a4f806d2bde7584c52675f750482404f7c824a9d828dcc5ad82972af1",
+  "server_rx_hex": "e8874e2a4f806d2bde7584c52675f750482404f7c824a9d828dcc5ad82972af1",
+  "server_tx_hex": "c64bc47b5b067dbb8b48cb73b20827ae32a1d2955c819b73687623b15d529373",
+  "stream_key_hex": "e8874e2a4f806d2bde7584c52675f750482404f7c824a9d828dcc5ad82972af1",
+  "stream_header_hex": "fa1f2ac15a10a9b586d35a20234a057023b349f920b0f78f",
+  "plaintexts": [
+    "hello-slice5\n",
+    "second frame",
+    "third-and-final"
+  ],
+  "ciphers_hex": [
+    "e56e8683a04a84e4fd5c401ad1d25f521c35e3829c6b7948a8c335efbf61",
+    "effeab2b9cb5a2891fe5a6b2f05fd78b59d87de06966b5953ac84858d6",
+    "2d784b17e653cfab30d453a4f224de35b3b84f3e99d8a9d70eb84aeea92c5f37"
+  ]
+}

@@ -1,0 +1,49 @@
+# Configuración de cargo-deny para noa-sdk.
+# En CI solo corremos `cargo deny check advisories sources`: auditamos avisos de seguridad y el origen de las
+# dependencias. Licencias y duplicados quedan fuera de este gate a propósito.
+
+[graph]
+# Analizar el árbol con TODAS las features activadas (incluida `intercept`), no solo
+# las default: así las deps opcionales (tun-rs, netstack-smoltcp, route_manager,
+# tokio-util) también pasan por el chequeo de advisories y de sources.
+all-features = true
+
+[advisories]
+# Trata como problema CUALQUIER crate marcado unmaintained en RustSec, esté donde esté
+# en el árbol (directo o transitivo). Sin red de seguridad silenciosa.
+unmaintained = "all"
+# Una versión yanked es una que el autor retiró de crates.io: la rechazamos de plano.
+yanked = "deny"
+
+# Punto de partida: `ignore = []`. Las tres entradas de abajo NO ocultan nada: son
+# EXCEPCIONES EXPLÍCITAS a advisories REALES que hoy no tienen fix dentro del alcance de
+# este cambio (solo config + workflow; sin tocar src/ ni migrar deps). Cada una lleva
+# `reason` y CONDICIÓN DE SALIDA (cuándo retirarla). Revisar en cada bump de deps.
+ignore = [
+    # `paste` archivado por su autor (proc-macro de pegado de tokens). Llega SOLO por la
+    # feature `intercept`: netlink-packet-core -> netconfig-rs/netlink-packet-route ->
+    # tun-rs/route_manager. Ausente del árbol default. Riesgo bajo (macro de build-time, sin
+    # superficie en runtime) y no hay versión no-archivada que adoptar.
+    # SALIR: retirar cuando tun-rs/route_manager/netconfig-rs suelten netlink-packet-core@paste
+    # (o publiquen una cadena netlink sin `paste`). Verificar con `cargo tree -i paste`.
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained; solo bajo feature intercept (cadena netlink de tun-rs/route_manager); sin fix in-scope. Salir cuando la cadena netlink deje de depender de paste." },
+    # `rustls-pemfile` archivado (ago-2025). Es dep DIRECTA (parseo PEM de certs/keys). El
+    # fix es migrar al trait `PemObject` de rustls-pki-types (>=1.9), lo que toca src/ y
+    # queda FUERA del alcance config-only de este cambio. No hay upgrade seguro publicado.
+    # SALIR: retirar esta excepción cuando el parseo PEM se mueva a rustls-pki-types y se
+    # elimine la dependencia `rustls-pemfile` del Cargo.toml.
+    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained (dep directa); migrar a rustls-pki-types PemObject toca src/. Salir al retirar la dep rustls-pemfile." },
+    # `spin 0.9.8` es una versión YANKED. Llega SOLO por la feature `intercept`:
+    # flume -> route_manager y netstack-smoltcp. Ausente del árbol default. No hay fix
+    # in-scope: el bump vive en esos upstreams (0.9.8 es la última publicada de la serie).
+    # SALIR: retirar cuando flume/netstack-smoltcp fijen un spin no-yanked; reintentar
+    # `cargo update -p spin` en cada bump para comprobar si ya se puede resolver sin yanked.
+    { crate = "spin@0.9.8", reason = "spin yanked; solo bajo feature intercept (flume/route_manager y netstack-smoltcp); sin fix in-scope. Salir cuando esos upstreams fijen un spin no-yanked." },
+]
+
+[sources]
+# Este proyecto solo consume crates.io. Cualquier dependencia que venga de un git
+# desconocido es un fallo: no hay git deps y no queremos que se cuelen sin revisión.
+unknown-git = "deny"
+# Lista de remotos git permitidos: vacía a propósito (no hay git deps).
+allow-git = []

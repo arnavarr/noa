@@ -1,0 +1,10 @@
+[toolchain]
+# Canal PINEADO (no "stable") a la versión concreta con la que compila hoy la VM
+# (rustc 1.94.1). Motivo: `[lints.clippy] all + pedantic` (Cargo.toml) promovidos a
+# `-D warnings` en CI + canal flotante = rotura espontánea con CADA release de Rust.
+# clippy pedantic incorpora lints nuevos en cada versión, así que un build que hoy pasa
+# mañana falla sin que cambiemos una sola línea de código. Con el pin, la subida de
+# toolchain es un cambio deliberado y revisable (editar este archivo), no una sorpresa
+# que llega desde upstream. Mantener sincronizado con `rust-version` de Cargo.toml.
+channel = "1.94.1"
+components = ["rustfmt", "clippy"]

@@ -1,0 +1,168 @@
+{
+  "schema": "noa-sdk/getnextid-golden/v1",
+  "generator": "qw-getnextid-clamp goldengen (Go 1.26.3)",
+  "oracle": {
+    "add": "ziti/edge/msg_mux.go:474-483",
+    "caller_bind": "ziti/edge/network/factory.go:179",
+    "caller_dial": "ziti/edge/network/factory.go:118",
+    "caller_host": "ziti/edge/network/hosting_conn.go:294",
+    "constructor": "ziti/edge/msg_mux.go:300-309",
+    "fields": "ziti/edge/msg_mux.go:311-318",
+    "get_next_id": "ziti/edge/msg_mux.go:337-352",
+    "pin": "4b6a087e92faaf94fcb027e9008bbcf45a325225",
+    "sdk_version": "v1.7.0"
+  },
+  "provenance": {
+    "in_use": "SEMBRADO (el generador registra sinks con mux.Add)",
+    "max_id": "CAPTURADO (leido del mux DESPUES del constructor)",
+    "min_id": "CAPTURADO (leido del mux DESPUES del constructor: nunca se escribe)",
+    "next_id_after": "CAPTURADO (campo privado nextId tras la llamada)",
+    "returned_id": "CAPTURADO (valor de retorno de GetNextId)",
+    "seed_next_id": "SEMBRADO (el generador escribe el campo privado nextId)"
+  },
+  "cells": [
+    {
+      "id": "C-01",
+      "desc": "arranque en frio: el contador es 0, la primera asignacion es 1",
+      "seed_next_id": 0,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 1,
+      "next_id_after": 1
+    },
+    {
+      "id": "C-02",
+      "desc": "segunda asignacion consecutiva",
+      "seed_next_id": 1,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 2,
+      "next_id_after": 2
+    },
+    {
+      "id": "C-03",
+      "desc": "SKIP simple: el id que tocaba esta en uso",
+      "seed_next_id": 0,
+      "in_use": [
+        1
+      ],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 2,
+      "next_id_after": 2
+    },
+    {
+      "id": "C-04",
+      "desc": "SKIP multiple: fixture multi-elemento, 1 y 2 en uso, ORDEN 1 luego 2",
+      "seed_next_id": 0,
+      "in_use": [
+        1,
+        2
+      ],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 3,
+      "next_id_after": 3
+    },
+    {
+      "id": "C-05",
+      "desc": "frontera INFERIOR del rebobinado: devuelve maxId-1, el ULTIMO id valido",
+      "seed_next_id": 2147483644,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 2147483645,
+      "next_id_after": 2147483645
+    },
+    {
+      "id": "C-06",
+      "desc": "frontera SUPERIOR: el candidato es maxId EXACTO y REBOBINA a minId",
+      "seed_next_id": 2147483645,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 1,
+      "next_id_after": 1
+    },
+    {
+      "id": "C-07",
+      "desc": "por encima de maxId: REBOBINA",
+      "seed_next_id": 2147483646,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 1,
+      "next_id_after": 1
+    },
+    {
+      "id": "C-08",
+      "desc": "candidato == MaxUint32: REBOBINA",
+      "seed_next_id": 4294967294,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 1,
+      "next_id_after": 1
+    },
+    {
+      "id": "C-09",
+      "desc": "WRAPAROUND del u32: el contador ya vale MaxUint32, el candidato es 0 y 0 esta EN RANGO",
+      "seed_next_id": 4294967295,
+      "in_use": [],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 0,
+      "next_id_after": 0
+    },
+    {
+      "id": "C-10",
+      "desc": "REBOBINA y ADEMAS salta: tras rebobinar, el 1 esta en uso",
+      "seed_next_id": 2147483645,
+      "in_use": [
+        1
+      ],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 2,
+      "next_id_after": 2
+    },
+    {
+      "id": "C-11",
+      "desc": "id EN USO en la frontera: maxId-1 ocupado, salta, sale de rango y REBOBINA",
+      "seed_next_id": 2147483644,
+      "in_use": [
+        2147483645
+      ],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 1,
+      "next_id_after": 1
+    },
+    {
+      "id": "C-12",
+      "desc": "0 en uso no cambia nada: el 0 nunca es candidato salvo wraparound",
+      "seed_next_id": 0,
+      "in_use": [
+        0
+      ],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 1,
+      "next_id_after": 1
+    },
+    {
+      "id": "C-13",
+      "desc": "SEPARADORA del ORDEN (i) vs (ii): MaxUint32 en uso Y fuera de rango a la vez",
+      "seed_next_id": 4294967294,
+      "in_use": [
+        4294967295
+      ],
+      "min_id": 0,
+      "max_id": 2147483646,
+      "returned_id": 0,
+      "next_id_after": 0
+    }
+  ]
+}

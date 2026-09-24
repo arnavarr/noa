@@ -1,0 +1,451 @@
+{
+  "schema": "noa-sdk/conninspect-golden/v1",
+  "generator": "qw-dg1-conninspect goldengen (Go 1.26.3)",
+  "oracle": {
+    "channel_version": "v4.3.9",
+    "constructor": "ziti/edge/messages.go:264-269",
+    "marshal": "channel/v4@v4.3.9/message.go:583-633",
+    "reply_to": "channel/v4@v4.3.9/message.go:390-399",
+    "responder_bind": "ziti/edge/network/hosting_conn.go:192-199",
+    "responder_dial": "ziti/edge/network/conn.go:303-310",
+    "responder_invalid": "ziti/edge/msg_mux.go:402-409",
+    "sdk_golang_pin": "4b6a087e92faaf94fcb027e9008bbcf45a325225",
+    "sdk_golang_version": "v1.7.0"
+  },
+  "constants": {
+    "ConnIdHeader": 1000,
+    "ConnTypeBind": 2,
+    "ConnTypeDial": 1,
+    "ConnTypeHeader": 1022,
+    "ConnTypeInvalid": 0,
+    "ConnTypeUnknown": 3,
+    "ContentTypeConnInspectRequest": 60798,
+    "ContentTypeConnInspectResponse": 60799,
+    "HelloSequence": -1,
+    "MaxReflectedHeader": 255,
+    "ReflectedHeaderBitMask": 128,
+    "ReplyForHeader": 1
+  },
+  "notes": [
+    "El ORDEN de los headers en el wire NO es determinista en el oraculo: marshalHeaders (message.go:635-653) itera un map[int32][]byte. wire_v2_sample_hex es UNA muestra valida; la equivalencia se afirma sobre el PLANO OBSERVABLE (content_type, sequence, reply_for, conjunto de headers, body), no sobre la secuencia de bytes.",
+    "MarshalV2 escribe ReplyForHeader (1) en tiempo de marshal desde m.replyFor (message.go:604-606), MUTANDO el mensaje. El snapshot del response se toma DESPUES del marshal, asi que 'headers' incluye la clave 1 con el sequence del request en uint32 LE: es exactamente el conjunto que viaja al wire. El campo 'reflected_from_request' se computa ANTES del marshal.",
+    "El sequence del response lo asigna el canal al enviar (senders.go:31, impl.go:257: ctx.NextSequence()); NewMessage lo deja en -1 (message.go:324), que es el valor de HelloSequence (channel.go:210).",
+    "REPRODUCIBILIDAD MEDIDA (no supuesta): el PLANO OBSERVABLE es reproducible (3 ejecuciones del generador, sha256 del plano canonico IDENTICO); el bloque wire_v2_forms NO lo es (5 ejecuciones, 4 sha256 distintos del fichero completo): Go aleatoriza el recorrido del map por PROCESO, asi que ni la muestra ni el CONJUNTO de rotaciones observadas son estables. Por eso wire_v2_forms es una MUESTRA CONGELADA en la captura que se commitea, y la re-derivacion del golden se verifica comparando el PLANO CANONICO, nunca el fichero byte a byte.",
+    "Uso previsto de wire_v2_forms: son bytes REALES del oraculo (el extremo del oraculo que exige RB-6 ampliada). El port debe DECODIFICAR cada forma y obtener el plano observable pineado; no se le exige EMITIR ninguna forma concreta, porque el orden de headers no es parte del contrato (unmarshalHeaders, message.go:559-580, acepta cualquier orden)."
+  ],
+  "vectors": [
+    {
+      "id": "V1-invalid-conn",
+      "desc": "conn id desconocida: ConnTypeInvalid + body 'invalid conn id [N]'",
+      "oracle_site": "ziti/edge/msg_mux.go:402-409",
+      "request": {
+        "content_type": 60798,
+        "sequence": 7,
+        "reply_for": -1,
+        "is_reply": false,
+        "headers": [
+          {
+            "key": 1000,
+            "value_hex": "92100000"
+          }
+        ],
+        "body_hex": "",
+        "body_utf8": ""
+      },
+      "response": {
+        "content_type": 60799,
+        "sequence": 42,
+        "reply_for": 7,
+        "is_reply": true,
+        "headers": [
+          {
+            "key": 1,
+            "value_hex": "07000000"
+          },
+          {
+            "key": 1000,
+            "value_hex": "92100000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "00"
+          }
+        ],
+        "body_hex": "696e76616c696420636f6e6e206964205b343234325d",
+        "body_utf8": "invalid conn id [4242]"
+      },
+      "wire_v2_forms": [
+        "0306090c7fed00002a0000002100000016000000010000000400000007000000e80300000400000092100000fe0300000100000000696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002a0000002100000016000000e80300000400000092100000fe0300000100000000010000000400000007000000696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002a0000002100000016000000fe0300000100000000010000000400000007000000e80300000400000092100000696e76616c696420636f6e6e206964205b343234325d"
+      ],
+      "wire_v2_len": 75,
+      "n_marshals": 200,
+      "reflected_from_request_ambiguous": [
+        1000
+      ],
+      "dropped_from_request_ambiguous": [],
+      "reflect_probe_keys": [],
+      "reflect_probe_dropped": [
+        1000
+      ]
+    },
+    {
+      "id": "V2-dial-conn",
+      "desc": "conn de dial viva: ConnTypeDial (body reducido por la ventana del arco)",
+      "oracle_site": "ziti/edge/network/conn.go:303-310 (constructor); cuerpo: conn.go:277-289",
+      "request": {
+        "content_type": 60798,
+        "sequence": 11,
+        "reply_for": -1,
+        "is_reply": false,
+        "headers": [
+          {
+            "key": 1000,
+            "value_hex": "07000000"
+          }
+        ],
+        "body_hex": "",
+        "body_utf8": ""
+      },
+      "response": {
+        "content_type": 60799,
+        "sequence": 43,
+        "reply_for": 11,
+        "is_reply": true,
+        "headers": [
+          {
+            "key": 1,
+            "value_hex": "0b000000"
+          },
+          {
+            "key": 1000,
+            "value_hex": "07000000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "01"
+          }
+        ],
+        "body_hex": "7b226964223a377d",
+        "body_utf8": "{\"id\":7}"
+      },
+      "wire_v2_forms": [
+        "0306090c7fed00002b000000210000000800000001000000040000000b000000e80300000400000007000000fe03000001000000017b226964223a377d",
+        "0306090c7fed00002b0000002100000008000000e80300000400000007000000fe030000010000000101000000040000000b0000007b226964223a377d",
+        "0306090c7fed00002b0000002100000008000000fe030000010000000101000000040000000b000000e803000004000000070000007b226964223a377d"
+      ],
+      "wire_v2_len": 61,
+      "n_marshals": 200,
+      "reflected_from_request_ambiguous": [
+        1000
+      ],
+      "dropped_from_request_ambiguous": [],
+      "reflect_probe_keys": [],
+      "reflect_probe_dropped": [
+        1000
+      ]
+    },
+    {
+      "id": "V3-bind-conn",
+      "desc": "conn de bind viva: ConnTypeBind (body reducido por la ventana del arco)",
+      "oracle_site": "ziti/edge/network/hosting_conn.go:192-199 (constructor); cuerpo: hosting_conn.go:247-260",
+      "request": {
+        "content_type": 60798,
+        "sequence": 12,
+        "reply_for": -1,
+        "is_reply": false,
+        "headers": [
+          {
+            "key": 1000,
+            "value_hex": "09000000"
+          }
+        ],
+        "body_hex": "",
+        "body_utf8": ""
+      },
+      "response": {
+        "content_type": 60799,
+        "sequence": 44,
+        "reply_for": 12,
+        "is_reply": true,
+        "headers": [
+          {
+            "key": 1,
+            "value_hex": "0c000000"
+          },
+          {
+            "key": 1000,
+            "value_hex": "09000000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "02"
+          }
+        ],
+        "body_hex": "7b226964223a397d",
+        "body_utf8": "{\"id\":9}"
+      },
+      "wire_v2_forms": [
+        "0306090c7fed00002c000000210000000800000001000000040000000c000000e80300000400000009000000fe03000001000000027b226964223a397d",
+        "0306090c7fed00002c0000002100000008000000e80300000400000009000000fe030000010000000201000000040000000c0000007b226964223a397d",
+        "0306090c7fed00002c0000002100000008000000fe030000010000000201000000040000000c000000e803000004000000090000007b226964223a397d"
+      ],
+      "wire_v2_len": 61,
+      "n_marshals": 200,
+      "reflected_from_request_ambiguous": [
+        1000
+      ],
+      "dropped_from_request_ambiguous": [],
+      "reflect_probe_keys": [],
+      "reflect_probe_dropped": [
+        1000
+      ]
+    },
+    {
+      "id": "V4-reflect-all-frontiers",
+      "desc": "fronteras del reflejo en UN request: 127/128/255/256, -1/-129, 384 y 1022 (ConnType real)",
+      "oracle_site": "channel/v4@v4.3.9/message.go:390-399",
+      "request": {
+        "content_type": 60798,
+        "sequence": 101,
+        "reply_for": -1,
+        "is_reply": false,
+        "headers": [
+          {
+            "key": -129,
+            "value_hex": "beef"
+          },
+          {
+            "key": -1,
+            "value_hex": "dead"
+          },
+          {
+            "key": 127,
+            "value_hex": "7f"
+          },
+          {
+            "key": 128,
+            "value_hex": "757569642d313238"
+          },
+          {
+            "key": 255,
+            "value_hex": "ff"
+          },
+          {
+            "key": 256,
+            "value_hex": "0100"
+          },
+          {
+            "key": 384,
+            "value_hex": "8001"
+          },
+          {
+            "key": 1000,
+            "value_hex": "92100000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "03"
+          }
+        ],
+        "body_hex": "",
+        "body_utf8": ""
+      },
+      "response": {
+        "content_type": 60799,
+        "sequence": 45,
+        "reply_for": 101,
+        "is_reply": true,
+        "headers": [
+          {
+            "key": -1,
+            "value_hex": "dead"
+          },
+          {
+            "key": 1,
+            "value_hex": "65000000"
+          },
+          {
+            "key": 128,
+            "value_hex": "757569642d313238"
+          },
+          {
+            "key": 255,
+            "value_hex": "ff"
+          },
+          {
+            "key": 1000,
+            "value_hex": "92100000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "00"
+          }
+        ],
+        "body_hex": "696e76616c696420636f6e6e206964205b343234325d",
+        "body_utf8": "invalid conn id [4242]"
+      },
+      "wire_v2_forms": [
+        "0306090c7fed00002d0000004400000016000000010000000400000065000000e80300000400000092100000fe03000001000000008000000008000000757569642d313238ff00000001000000ffffffffff02000000dead696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002d00000044000000160000008000000008000000757569642d313238ff00000001000000ffffffffff02000000dead010000000400000065000000e80300000400000092100000fe0300000100000000696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002d0000004400000016000000e80300000400000092100000fe03000001000000008000000008000000757569642d313238ff00000001000000ffffffffff02000000dead010000000400000065000000696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002d0000004400000016000000fe03000001000000008000000008000000757569642d313238ff00000001000000ffffffffff02000000dead010000000400000065000000e80300000400000092100000696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002d0000004400000016000000ff00000001000000ffffffffff02000000dead010000000400000065000000e80300000400000092100000fe03000001000000008000000008000000757569642d313238696e76616c696420636f6e6e206964205b343234325d",
+        "0306090c7fed00002d0000004400000016000000ffffffff02000000dead010000000400000065000000e80300000400000092100000fe03000001000000008000000008000000757569642d313238ff00000001000000ff696e76616c696420636f6e6e206964205b343234325d"
+      ],
+      "wire_v2_len": 110,
+      "n_marshals": 200,
+      "reflected_from_request_ambiguous": [
+        -1,
+        128,
+        255,
+        1000
+      ],
+      "dropped_from_request_ambiguous": [
+        -129,
+        127,
+        256,
+        384,
+        1022
+      ],
+      "reflect_probe_keys": [
+        -1,
+        128,
+        255
+      ],
+      "reflect_probe_dropped": [
+        -129,
+        127,
+        256,
+        384,
+        1000,
+        1022
+      ]
+    },
+    {
+      "id": "V5-no-reflectable-headers",
+      "desc": "control negativo: ningun header del request cruza el predicado",
+      "oracle_site": "channel/v4@v4.3.9/message.go:390-399",
+      "request": {
+        "content_type": 60798,
+        "sequence": 200,
+        "reply_for": -1,
+        "is_reply": false,
+        "headers": [
+          {
+            "key": 1000,
+            "value_hex": "01000000"
+          }
+        ],
+        "body_hex": "",
+        "body_utf8": ""
+      },
+      "response": {
+        "content_type": 60799,
+        "sequence": 46,
+        "reply_for": 200,
+        "is_reply": true,
+        "headers": [
+          {
+            "key": 1,
+            "value_hex": "c8000000"
+          },
+          {
+            "key": 1000,
+            "value_hex": "01000000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "00"
+          }
+        ],
+        "body_hex": "696e76616c696420636f6e6e206964205b315d",
+        "body_utf8": "invalid conn id [1]"
+      },
+      "wire_v2_forms": [
+        "0306090c7fed00002e00000021000000130000000100000004000000c8000000e80300000400000001000000fe0300000100000000696e76616c696420636f6e6e206964205b315d",
+        "0306090c7fed00002e0000002100000013000000e80300000400000001000000fe03000001000000000100000004000000c8000000696e76616c696420636f6e6e206964205b315d",
+        "0306090c7fed00002e0000002100000013000000fe03000001000000000100000004000000c8000000e80300000400000001000000696e76616c696420636f6e6e206964205b315d"
+      ],
+      "wire_v2_len": 72,
+      "n_marshals": 200,
+      "reflected_from_request_ambiguous": [
+        1000
+      ],
+      "dropped_from_request_ambiguous": [],
+      "reflect_probe_keys": [],
+      "reflect_probe_dropped": [
+        1000
+      ]
+    },
+    {
+      "id": "V6-negative-sequence",
+      "desc": "reply_for copia el sequence del request tal cual, incluso negativo",
+      "oracle_site": "channel/v4@v4.3.9/message.go:390-399",
+      "request": {
+        "content_type": 60798,
+        "sequence": -7,
+        "reply_for": -1,
+        "is_reply": false,
+        "headers": [
+          {
+            "key": 128,
+            "value_hex": "74726163652d75756964"
+          },
+          {
+            "key": 1000,
+            "value_hex": "ffff0000"
+          }
+        ],
+        "body_hex": "",
+        "body_utf8": ""
+      },
+      "response": {
+        "content_type": 60799,
+        "sequence": 47,
+        "reply_for": -7,
+        "is_reply": true,
+        "headers": [
+          {
+            "key": 1,
+            "value_hex": "f9ffffff"
+          },
+          {
+            "key": 128,
+            "value_hex": "74726163652d75756964"
+          },
+          {
+            "key": 1000,
+            "value_hex": "ffff0000"
+          },
+          {
+            "key": 1022,
+            "value_hex": "00"
+          }
+        ],
+        "body_hex": "696e76616c696420636f6e6e206964205b36353533355d",
+        "body_utf8": "invalid conn id [65535]"
+      },
+      "wire_v2_forms": [
+        "0306090c7fed00002f00000033000000170000000100000004000000f9ffffffe803000004000000ffff0000fe0300000100000000800000000a00000074726163652d75756964696e76616c696420636f6e6e206964205b36353533355d",
+        "0306090c7fed00002f0000003300000017000000800000000a00000074726163652d757569640100000004000000f9ffffffe803000004000000ffff0000fe0300000100000000696e76616c696420636f6e6e206964205b36353533355d",
+        "0306090c7fed00002f0000003300000017000000e803000004000000ffff0000fe0300000100000000800000000a00000074726163652d757569640100000004000000f9ffffff696e76616c696420636f6e6e206964205b36353533355d",
+        "0306090c7fed00002f0000003300000017000000fe0300000100000000800000000a00000074726163652d757569640100000004000000f9ffffffe803000004000000ffff0000696e76616c696420636f6e6e206964205b36353533355d"
+      ],
+      "wire_v2_len": 94,
+      "n_marshals": 200,
+      "reflected_from_request_ambiguous": [
+        128,
+        1000
+      ],
+      "dropped_from_request_ambiguous": [],
+      "reflect_probe_keys": [
+        128
+      ],
+      "reflect_probe_dropped": [
+        1000
+      ]
+    }
+  ]
+}

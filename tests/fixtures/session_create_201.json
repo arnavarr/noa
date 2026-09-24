@@ -1,0 +1,29 @@
+{
+  "data": {
+    "id": "cmqhwzovh04ar28rog2q296ag",
+    "apiSessionId": "cmqhwzoth04ap28rozm0txakz",
+    "identityId": "4KzwVoaq8k",
+    "serviceId": "4wN0IlApM5DhJcmWstU9FE",
+    "type": "Dial",
+    "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.SESSION_JWT.signature",
+    "edgeRouters": [
+      {
+        "name": "er1",
+        "hostname": "localhost",
+        "isOnline": true,
+        "cost": 0,
+        "disabled": false,
+        "noTraversal": false,
+        "syncStatus": "SYNC_DONE",
+        "supportedProtocols": { "tls": "tls://localhost:3022" },
+        "urls": { "tls": "tls://localhost:3022" }
+      }
+    ],
+    "apiSession": null,
+    "service": null,
+    "_links": null,
+    "createdAt": null,
+    "updatedAt": null
+  },
+  "meta": {}
+}

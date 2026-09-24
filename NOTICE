@@ -1,0 +1,19 @@
+noa-sdk
+Copyright 2026 BlueUP M&M S.L.
+
+This product is an independent Rust reimplementation of the OpenZiti edge
+client SDK. It is NOT affiliated with, endorsed by, or sponsored by
+NetFoundry Inc. or the OpenZiti project.
+
+The on-wire protocol, message/header constants, enrolment flow, and certain
+test vectors are derived from OpenZiti, which is licensed under the Apache
+License, Version 2.0. OpenZiti is used as the equivalence oracle for this
+reimplementation:
+
+  - OpenZiti SDK for Go   - https://github.com/openziti/sdk-golang   (v1.7.0, 4b6a087)
+  - openziti/secretstream - https://github.com/openziti/secretstream
+  - OpenZiti project      - https://openziti.io
+
+"Ziti" and "OpenZiti" are trademarks of NetFoundry Inc. They are used here
+only as required for reasonable and customary use in describing the origin
+of this work; this project does not use them as its product or brand name.

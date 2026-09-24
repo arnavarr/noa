@@ -1,0 +1,21 @@
+issuer: http://host.docker.internal:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+  passwordConnector: local
+enablePasswordDB: true
+staticClients:
+  - id: noa-spike
+    name: noa-spike
+    secret: noa-spike-secret
+    redirectURIs:
+      - http://127.0.0.1:5555/callback   # no se usa (password grant); requerido por el schema
+staticPasswords:
+  - email: spike@noa.local
+    # hash bcrypt de la palabra "password" (hash de ejemplo canónico de la doc de Dex)
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: spike
+    userID: 6a1b4e6a-0000-4000-8000-6e6f612d6478

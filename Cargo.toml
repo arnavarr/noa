@@ -1,0 +1,191 @@
+[package]
+name = "noa-sdk"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+description = "Independent Rust implementation of the OpenZiti edge client SDK and tunneler (research/alpha)"
+license = "Apache-2.0"
+readme = "README.md"
+# Marcador: el dueño lo sustituye por la URL definitiva del repositorio público.
+repository = "https://github.com/arnavarr/noa"
+keywords = ["zero-trust", "openziti", "overlay", "networking", "tunnel"]
+categories = ["network-programming", "cryptography", "command-line-utilities"]
+publish = false
+
+[lib]
+name = "noa_sdk"
+path = "src/lib.rs"
+
+[[bin]]
+name = "noa"
+path = "src/main.rs"
+
+[dependencies]
+tokio        = { version = "1.52", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync"] }
+# `rustls-tls-no-provider` (= `__rustls`) evita el backend `ring` que arrastra el
+# `rustls-tls` normal vía hyper-rustls. Aportamos el provider (aws-lc-rs, instalado
+# con ensure_crypto_provider) y los roots/verifiers nosotros, así que reqwest no
+# necesita ni provider ni root-store propios → backend cripto único: aws-lc-rs.
+reqwest      = { version = "0.12.28", default-features = false, features = ["rustls-tls-no-provider", "http2", "json", "charset"] }
+rustls       = "0.23"
+rustls-pki-types = "1"
+rustls-pemfile = "2"
+# Socket TLS crudo para el canal binario al edge router (no HTTP). Reusa rustls
+# 0.23 + el provider aws-lc-rs ya instalado por ensure_crypto_provider.
+# default-features=false + aws_lc_rs para NO arrastrar ring (backend único).
+tokio-rustls = { version = "0.26", default-features = false, features = ["aws_lc_rs", "tls12", "logging"] }
+jsonwebtoken = { version = "10", default-features = false, features = ["use_pem", "aws_lc_rs"] }
+# Backend cripto unificado en aws-lc-rs: default-features=false desactiva el
+# backend `ring` por defecto de rcgen (evita arrastrar dos backends). P-384 lo
+# genera rcgen por su backend, así que `p384` NO es dependencia directa.
+rcgen        = { version = "0.14", default-features = false, features = ["aws_lc_rs", "pem"] }
+x509-cert    = { version = "0.2.5", features = ["pem"] }
+cms          = "0.2.3"
+der          = { version = "0.7", features = ["pem"] }
+base64       = "0.22"
+# SHA-256 for the OIDC PKCE code challenge (`S256`: base64url(sha256(verifier)), oracle
+# `newPkceParameters` clients_shared.go:823). Promoted from transitive (already in the tree via
+# `dryoc`) to a DIRECT dep → 0 NEW crates shipped, ring stays absent (RustCrypto, pure Rust).
+# Same 0-new-crate pattern as `url`/`time`.
+sha2         = "0.11"
+# OS RNG for the 8-char connection marker (base64url of 6 random bytes, like Go's
+# newMarker). Not a crypto provider — does not reintroduce ring.
+# Already present in the tree (0.3.4).
+getrandom    = "0.3"
+# App-layer e2e crypto (libsodium-compatible: crypto_kx + secretstream xchacha20poly1305).
+# Pure Rust, does NOT reintroduce `ring`, and is independent of the rustls TLS provider.
+# Byte-compat with openziti/secretstream proven
+# offline both directions. default-features=false + u64_backend keeps it portable (no nightly).
+dryoc        = { version = "0.8", default-features = false, features = ["u64_backend"] }
+serde        = { version = "1", features = ["derive"] }
+serde_json   = "1"
+thiserror    = "2"
+# Exponential backoff for session creation (oracle `createSessionWithBackoff`).
+# Battle-tested, async-native (tokio sleeper); pure Rust, does NOT reintroduce `ring`
+# and is independent of the rustls provider.
+# `tokio-sleep` is on by default and reuses the `tokio/time` we already enable.
+backon       = "1.6"
+# `select_ok` for the parallel multi-router race in connect (slice 10c): races the
+# per-router channel-open futures in place (no spawn → they borrow `&self`), first Ok
+# wins, all-Err yields the last Err — exactly the oracle's `getEdgeRouterConn` fan-out.
+# Already in the tree (transitively via reqwest/tokio); pure Rust, does NOT reintroduce
+# `ring`. default-features=false keeps it to the future combinators we use.
+futures-util = { version = "0.3", default-features = false, features = ["std", "async-await"] }
+# Structured logging facade (Rust de-facto standard). The LIBRARY only emits via the
+# `warn!`/`debug!` macros + `#[instrument]` spans; it does NOT install a subscriber (that
+# is the binary's job), so `src/main.rs` is untouched. default-features=false keeps it lean;
+# we add back `attributes` (slice O5) for the `#[instrument]` span macro on connect_inner/
+# accept_next → pulls only `tracing-attributes` (a pure-Rust proc-macro). Pure Rust, does NOT
+# reintroduce `ring` and is independent of the rustls provider.
+# `tracing`/`tracing-core` already transitive (tokio/reqwest).
+tracing      = { version = "0.1", default-features = false, features = ["std", "attributes"] }
+# Subscriber que INSTALA el binario (el lib solo emite, ver comentario arriba): lee `RUST_LOG` vía
+# `EnvFilter` y renderiza a stderr. `env-filter` hace vivo `RUST_LOG`; `fmt` es el formateador
+# humano (arrastra `registry`); `ansi` EXCLUIDA de esta declaración a propósito. El binario de
+# PRODUCCIÓN (`cargo build`/`--release`, sin tests) queda en texto plano, verificado sin bytes ESC.
+# ⚠ `nu-ansi-term` SÍ está en el árbol (vía `tracing-test`, dev-dep con `tracing-subscriber`
+# default-features) y su feature `ansi` SE UNIFICA en binarios compilados junto a los tests
+# (`cargo test`/`cargo build --tests`): esos `noa` de depuración SÍ emiten color a stderr —
+# nunca a stdout, nunca en el binario shipped. Pure Rust, 0 crates nuevos en el lock (las 6
+# dependencias que pasan a shipped ya estaban en el árbol como dev-deps transitivas de
+# `tracing-test`); no reintroduce `ring`; independiente del provider de rustls.
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter"] }
+# URL parsing to VALIDATE the enrolment token's issuer (oracle ValidateToken's `url.Parse`,
+# enroll.go:118) before deriving endpoint URLs. Validation only — the derivation still concatenates
+# (keeping any non-root issuer path, a fix over the oracle's inconsistent EnrolmentUrl). Pure Rust,
+# does NOT reintroduce `ring`; already transitive (reqwest) → 0 new crates in the shipped tree.
+url          = "2"
+time = { version = "0.3.49", default-features = false, features = ["parsing", "formatting", "std"] }
+# CIDR parsing + IP-contains for the tunneler host's `forwardAddress` allow-list (T4b-1), mirroring
+# the oracle's `net.IPNet.Contains` (`tunnel/entities/service.go` cidrAddress + `utils.GetCidr`). Pure
+# Rust, does NOT reintroduce `ring`; already transitive (reqwest/hyper-util) → 0 new crates shipped.
+# Same 0-new-crate pattern as `url`/`time`/`futures-util`.
+ipnet        = "2"
+
+# --- Capa de intercept de host (feature `intercept`, opcional, off por defecto) ---
+# Dispositivo utun (macOS) / TUN (Linux) para CAPTURAR tráfico local y entregarlo al overlay.
+# tun-rs v2 es el sucesor mantenido de rust-tun; en macOS gestiona el prefijo AF de 4 bytes
+# INTERNAMENTE (entrega/acepta paquetes IP DESNUDOS, unificado entre plataformas). El `unsafe`
+# queda confinado al fd del utun (sancionado por el diseño del intercept). Pure Rust (libc +
+# tokio), NO reintroduce `ring`. `optional = true` → el build default NO lo compila ni lo enlaza.
+tun-rs       = { version = "2.8", optional = true, features = ["async_tokio"] }
+# Pila TCP/IP en espacio de usuario (M1+): convierte el firehose de paquetes IP crudos del utun en
+# flujos lógicos. `netstack-smoltcp` internaliza el patrón `any_ip` (acepta CUALQUIER IP destino) y
+# entrega `(TcpStream: AsyncRead+AsyncWrite, src, dst)` por TCP y `(payload, src, dst)` por UDP sobre
+# smoltcp 0.12 (`smoltcp`/`etherparse` transitivos). Pure Rust (sin C/cmake), NO reintroduce `ring`.
+# `optional = true` → solo entra con la feature `intercept`. Se DEPENDE de crates.io en M0–M2 y se
+# VENDORIZARÁ en el seam del DNS/resolución (mantenedor único + upstream archivado, pieza del data-plane).
+netstack-smoltcp = { version = "0.2.3", optional = true }
+# Instalación de rutas OS-level (M3-rutas): ruta interface-scoped por cada CIDR `intercept.v1` → utun,
+# para que el SO entregue al device tráfico a destinos FUERA de la subred on-link. Oráculo:
+# `ziti-tunnel-sdk-c` `route -n add <ip/bits> -interface utunN` (`darwin/utun.c:103-108`); con
+# `gateway=None` + `if_index`, route_manager emite exactamente esa ruta interface-scoped (en macOS el
+# sockaddr_dl del enlace va en el slot RTA_GATEWAY con RTF_GATEWAY limpio; RTF_HOST para /32). Habla
+# PF_ROUTE (rt_msghdr) en macOS/BSD y netlink en Linux; pure Rust (libc +
+# netlink-*), NO reintroduce `ring`. YA es transitivo vía `tun-rs` (misma versión en el lock) → lo
+# promovemos a dep DIRECTA (gated `intercept`), 0 crates nuevos. `optional = true`.
+route_manager = { version = "0.2.11", optional = true }
+# Señal de cancelación por-flujo del `FlowRegistry` (kill-active): `CancellationToken` es
+# NIVEL-disparada (un `cancelled().await` sobre un token YA cancelado resuelve inmediato — sin la
+# trampa de versiones de `watch::Receiver`), clonable y `Send + Sync`, así que cruza del hilo del
+# `LocalSet` al pool MT donde corren los splices. YA es transitiva del árbol DEFAULT (h2 → hyper →
+# reqwest, misma versión en el lock) → promoverla a dep DIRECTA no añade 0 crates ni reintroduce
+# `ring`; mismo patrón 0-new-crate que `url`/`time`/`ipnet`/`route_manager`. `default-features=false`
+# deja fuera codec/io/rt: `tokio_util::sync` no está gateado por ninguna feature. `optional = true`
+# porque solo la usa la capa `intercept`.
+tokio-util   = { version = "0.7", default-features = false, optional = true }
+
+[dev-dependencies]
+wiremock     = "0.6"
+tokio        = { version = "1.52", features = ["rt-multi-thread", "macros", "net", "time", "test-util"] }
+# Capturing subscriber for asserting on emitted events (`#[traced_test]` + `logs_contain`).
+# Dev-only. Pure Rust, does NOT reintroduce `ring`; pulls tracing-subscriber + friends as
+# dev-deps only (no effect on the shipped library or `cargo tree -i ring`).
+tracing-test = "0.2"
+# TOTP (RFC 6238) computation for the MFA-1 LIVE test ONLY (the `#[ignore]` mfa-spike test mints a
+# fresh code from the fixture secret). The SDK itself NEVER computes a TOTP code — the caller supplies
+# it via the `TotpCodeProvider` callback, so these are strictly DEV-ONLY and do NOT touch the shipped
+# library. RustCrypto, pure Rust; verified `cargo tree -i ring` stays empty. `data-encoding` (base32
+# decode of the shared secret) is already in-tree. HMAC-SHA1 is the RFC 6238 default.
+hmac = "0.12"
+sha1 = "0.10"
+data-encoding = "2"
+
+[features]
+default = []
+# Backend cripto ÚNICO: aws-lc-rs (rustls, rcgen y jsonwebtoken lo enlazan). No hay
+# feature para cambiar de provider: un build pure-Rust exigiría mover rcgen y
+# jsonwebtoken a RustCrypto, y es trabajo futuro, no un flag.
+
+# `intercept` activa la capa de captura de host (utun → flujos lógicos → overlay; ver
+# `src/tunnel/intercept/`). Arrastra `tun-rs` (y, en
+# rebanadas posteriores, smoltcp/netstack-smoltcp). Off por defecto para que noa-sdk siga
+# siendo platform-agnostic y el build default no cargue deps específicas de macOS.
+# `futures-util/sink` habilita `Sink::send` + `StreamExt::split` (para partir el `Stack` de netstack
+# en ingress/egress); `futures-sink` ya está en el árbol → 0 crates nuevos, solo bajo `intercept`.
+intercept = [
+    "dep:tun-rs",
+    "dep:netstack-smoltcp",
+    "dep:route_manager",
+    "dep:tokio-util",
+    "futures-util/sink",
+]
+
+# Lints aplicados a todo el crate. clippy::all + pedantic como base de R&D;
+# relajamos lo que sea ruido durante el porting.
+# Build cache hygiene: incremental compilation off. `target/debug/incremental` had grown to several
+# GiB; enforcing it in the manifest makes it hold no matter who runs cargo.
+# `profile.test` inherits from `dev`.
+[profile.dev]
+incremental = false
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+doc_markdown = "allow"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
