@@ -10,9 +10,6 @@ Reuses the controller from `docs/enrolment-integration.md` (container `ziti-ctrl
 > 4 policies, usa **`bash scripts/rig-fixtures.sh`** (`--ensure` para reponer). Han desaparecido de la
 > rig compartida **dos veces** (s10 y 2026-08-05) sin que ninguna sesión las tocara, así que su
 > presencia se mide al abrir un gate live; no se hereda de este documento.
-> ⚠ Los bloques antiguos citan además `--features graviola`: esa feature **NO EXISTE** (D5, borrada
-> 2026-07-11; `noa-sdk/CLAUDE.md` §Política cripto/build). Las dos cfg vigentes son `default` y
-> `--features intercept`.
 
 1. Ensure the controller is up (see docs/enrolment-integration.md §1) and you are
    logged in: `ziti edge login localhost:1280 -u admin -p admin -y`.
@@ -102,13 +99,6 @@ ZITI_EDGE_JWT=/tmp/edgechan.jwt \
   cargo test --test edge_integration enrol_then_open_channel -- --ignored --nocapture
 ```
 
-With the `graviola` feature (pure-Rust crypto path):
-
-```
-ZITI_EDGE_JWT=/tmp/edgechan.jwt \
-  cargo test --features graviola --test edge_integration enrol_then_open_channel -- --ignored --nocapture
-```
-
 Expected output: `channel open: router_id=Some("...") hello_version=Some("v2.0.0|...")`;
 the channel closes without error.
 
@@ -129,14 +119,12 @@ ziti edge list terminators   # expect one row for testsvc-noenc, router er1, bin
 ```
 
 The existing `dial-all` (#all/#all Dial) policy already lets the enrolled identity
-dial it. Run (default and graviola):
+dial it. Run:
 
 ```
 ziti edge create identity edgedial -o /tmp/edgedial.jwt
 ZITI_EDGE_JWT=/tmp/edgedial.jwt \
   cargo test --test edge_integration enrol_then_dial -- --ignored --nocapture
-ZITI_EDGE_JWT=/tmp/edgedial.jwt \
-  cargo test --features graviola --test edge_integration enrol_then_dial -- --ignored --nocapture
 ```
 
 Expected: `dialed: conn_id=1 circuit_id=Some("...")`. The test selects the service
@@ -165,14 +153,12 @@ ziti edge update config noenc-host --data '{"protocol":"tcp","address":"localhos
 ziti edge list terminators   # testsvc-noenc / er1 / tunnel present
 ```
 
-Run (default and graviola; fresh ott JWT per run):
+Run (fresh ott JWT per run):
 
 ```
 ziti edge create identity edgedata -o /tmp/edgedata.jwt
 ZITI_EDGE_JWT=/tmp/edgedata.jwt \
   cargo test --test edge_integration enrol_then_dial -- --ignored --nocapture
-ZITI_EDGE_JWT=/tmp/edgedata.jwt \
-  cargo test --features graviola --test edge_integration enrol_then_dial -- --ignored --nocapture
 ```
 
 Expected: `data round-trip OK: conn_id=1 circuit=Some("...")`. The router echoes the
@@ -194,14 +180,12 @@ ziti edge create service-policy bind-enc Bind --service-roles '@testsvc' --ident
 ziti edge list terminators   # expect a row for testsvc, router er1, binding=tunnel
 ```
 
-Run (default and graviola; fresh ott JWT per run):
+Run (fresh ott JWT per run):
 
 ```
 ziti edge create identity edgecrypto -o /tmp/edgecrypto.jwt
 ZITI_EDGE_JWT=/tmp/edgecrypto.jwt \
   cargo test --test edge_integration enrol_then_dial_encrypted -- --ignored --nocapture
-ZITI_EDGE_JWT=/tmp/edgecrypto.jwt \
-  cargo test --features graviola --test edge_integration enrol_then_dial_encrypted -- --ignored --nocapture
 ```
 
 Expected: `encrypted round-trip OK: conn_id=1 circuit=Some("...")`. The payload on the wire is
@@ -220,12 +204,10 @@ El test `enrol_then_connect_both` llama `client.connect("testsvc-noenc")` y
 `Service.encryption_required` y activa (o no) la cripto sin que el test pase el flag.
 
 ```bash
-# Mintea un JWT ott FRESCO (un solo uso) y corre el test, default y graviola:
+# Mintea un JWT ott FRESCO (un solo uso) y corre el test:
 ziti edge login localhost:1280 -u admin -p admin -y
 ziti edge create identity slice6 -o /tmp/slice6.jwt
 ZITI_EDGE_JWT=/tmp/slice6.jwt cargo test --test edge_integration enrol_then_connect_both -- --ignored --nocapture
-ziti edge create identity slice6g -o /tmp/slice6g.jwt
-ZITI_EDGE_JWT=/tmp/slice6g.jwt cargo test --features graviola --test edge_integration enrol_then_connect_both -- --ignored --nocapture
 ```
 
 ## Rebanada 7a (registrar el bind: `bind`)
@@ -245,11 +227,9 @@ ziti edge create service bindsvc -e OFF
 ziti edge create service-policy bind-bindsvc Bind --service-roles '@bindsvc' --identity-roles '#all'
 # (service-edge-router-policy serp-all #all/#all ya existe desde la rebanada 2)
 
-# Mintea un JWT ott FRESCO (un solo uso) y corre el test, default y graviola:
+# Mintea un JWT ott FRESCO (un solo uso) y corre el test:
 ziti edge create identity s7a -o /tmp/s7a.jwt
 ZITI_EDGE_JWT=/tmp/s7a.jwt cargo test --test edge_integration enrol_then_bind -- --ignored --nocapture
-ziti edge create identity s7ag -o /tmp/s7ag.jwt
-ZITI_EDGE_JWT=/tmp/s7ag.jwt cargo test --features graviola --test edge_integration enrol_then_bind -- --ignored --nocapture
 
 # Verificar el terminator registrado (mientras el test corre, o si dejas el binding abierto):
 ziti edge list terminators   # una fila para 'bindsvc' (router er1, nuestra identidad)
@@ -276,12 +256,6 @@ ziti edge create identity s7b1h -o /tmp/s7b1h.jwt
 ziti edge create identity s7b1d -o /tmp/s7b1d.jwt
 ZITI_EDGE_JWT=/tmp/s7b1h.jwt ZITI_EDGE_JWT_DIALER=/tmp/s7b1d.jwt \
   cargo test --test edge_integration bind_then_serve_roundtrip -- --ignored --nocapture
-
-# Repite con graviola (JWTs nuevos):
-ziti edge create identity s7b1hg -o /tmp/s7b1hg.jwt
-ziti edge create identity s7b1dg -o /tmp/s7b1dg.jwt
-ZITI_EDGE_JWT=/tmp/s7b1hg.jwt ZITI_EDGE_JWT_DIALER=/tmp/s7b1dg.jwt \
-  cargo test --features graviola --test edge_integration bind_then_serve_roundtrip -- --ignored --nocapture
 
 # Observa el terminator de nuestro host (cierra el pendiente honesto de 7a):
 ziti edge list terminators   # una fila para 'bindsvc' (router er1, identidad host)
@@ -328,15 +302,6 @@ ZITI_EDGE_JWT=/tmp/s7b2h.jwt ZITI_EDGE_JWT_DIALER=/tmp/s7b2d.jwt \
   cargo test --test edge_integration bind_then_serve_encrypted_roundtrip -- --ignored --nocapture
 ```
 
-Con el feature `graviola` (pure-Rust crypto path; JWTs nuevos):
-
-```bash
-ziti edge create identity s7b2hg -o /tmp/s7b2hg.jwt
-ziti edge create identity s7b2dg -o /tmp/s7b2dg.jwt
-ZITI_EDGE_JWT=/tmp/s7b2hg.jwt ZITI_EDGE_JWT_DIALER=/tmp/s7b2dg.jwt \
-  cargo test --features graviola --test edge_integration bind_then_serve_encrypted_roundtrip -- --ignored --nocapture
-```
-
 Salida esperada:
 
 ```
@@ -354,9 +319,6 @@ el camino del cliente con el test vecino:
 ziti edge create identity s7b2nb -o /tmp/s7b2nb.jwt
 ZITI_EDGE_JWT=/tmp/s7b2nb.jwt \
   cargo test --test edge_integration enrol_then_connect_both -- --ignored --nocapture
-ziti edge create identity s7b2nbg -o /tmp/s7b2nbg.jwt
-ZITI_EDGE_JWT=/tmp/s7b2nbg.jwt \
-  cargo test --features graviola --test edge_integration enrol_then_connect_both -- --ignored --nocapture
 ```
 
 Salida esperada: `slice 6 connect() round-trip OK (plaintext + encrypted, flag from Service)`.
@@ -370,7 +332,7 @@ round-trip, que el `source_identity()` del lado host **==** el `identity_name()`
 (dos derivaciones independientes: lectura del header `CallerId`=1008 del wire vs el `identity.name` del
 api-session; sin literal fijo). El nombre observado será el de la 2ª identidad creada para el dialer.
 
-### Puerta de equivalencia (ambos caminos de accept + vecino, default Y graviola)
+### Puerta de equivalencia (ambos caminos de accept + vecino)
 
 `accept_next`/`EdgeConn::new` son compartidos por el accept plano y el cifrado, así que el camino
 cifrado NO es opcional. Por cada corrida, identidades OTT frescas (de un solo uso):
@@ -388,7 +350,7 @@ ziti edge create identity s8-dialer-ed -o /tmp/s8-dialer-ed.jwt
 ZITI_EDGE_JWT=/tmp/s8-host-ed.jwt ZITI_EDGE_JWT_DIALER=/tmp/s8-dialer-ed.jwt \
   cargo test --test edge_integration bind_then_serve_encrypted_roundtrip -- --ignored --nocapture
 
-# Repetir ambos con --features graviola (identidades nuevas), y el vecino:
+# Vecino:
 ziti edge create identity s8-conn-d -o /tmp/s8-conn-d.jwt
 ZITI_EDGE_JWT=/tmp/s8-conn-d.jwt \
   cargo test --test edge_integration enrol_then_connect_both -- --ignored --nocapture

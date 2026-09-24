@@ -40,9 +40,6 @@
 //! ```sh
 //! sudo env ZITI_EDGE_JWT=/ruta/host.jwt ZITI_EDGE_JWT_DIALER=/ruta/dialer.jwt \
 //!   cargo test --features intercept --test intercept_m3_udp -- --ignored --nocapture
-//! # graviola (firma el client-auth mTLS con el provider graviola; usa 2 JWTs frescos MÁS):
-//! sudo env ZITI_EDGE_JWT=/ruta/host-grav.jwt ZITI_EDGE_JWT_DIALER=/ruta/dialer-grav.jwt \
-//!   cargo test --features intercept,graviola --test intercept_m3_udp -- --ignored --nocapture
 //! ```
 //!
 //! Detalle del rig + pasos exactos en `docs/M3-UDP-e2e-runbook.md`.

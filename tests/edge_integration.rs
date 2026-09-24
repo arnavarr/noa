@@ -823,10 +823,8 @@ async fn enrol_then_connect_twice_reuses_dial_session() {
 
 // Slice E1 (enrolment arc): RSA-4096 as the client key algorithm. NEW wire — the controller signs
 // an RSA CSR for the first time — so this earns a live test (live-validation rule: new wire needs a live test). It also
-// exercises the *subsequent* mTLS auth + dial with an RSA-4096 client cert, which under
-// `--features graviola` requires graviola to sign RSA-PKCS1/PSS (it does: rustls-graviola sign.rs
-// loads PKCS#8 RSA keys and advertises RSA_PKCS1/PSS_SHA{256,384,512}). End-to-end round-trip proves
-// the RSA identity authenticates and dials, in both default and graviola.
+// exercises the *subsequent* mTLS auth + dial with an RSA-4096 client cert. The end-to-end round-trip
+// proves the RSA identity authenticates and dials.
 #[tokio::test]
 #[ignore = "requires a live controller + online router + hosted testsvc-noenc; see docs/edge-integration.md"]
 async fn enrol_rsa_then_connect() {
@@ -1033,8 +1031,7 @@ async fn enrol_then_acquire_session_cert() {
 //   ziti edge create identity s2updb --updb -o /tmp/s2updb.jwt
 //   export ZITI_EDGE_JWT_UPDB_S2=/tmp/s2updb.jwt ZITI_EDGE_UPDB_S2_PASS=s2password123
 // (and delete the identity after: `ziti edge delete identity s2updb`).
-// Run default AND `--features graviola` (graviola signs the router client-auth with the session-cert
-// P-256). Equivalence gate: connect("testsvc-noenc") → plaintext echo round-trips through the router.
+// Equivalence gate: connect("testsvc-noenc") → plaintext echo round-trips through the router.
 #[tokio::test]
 #[ignore = "requires a live controller + router + a fresh updb identity (--updb) + testsvc-noenc; see docs/superpowers/specs/2026-06-19-session-certs-design.md §7"]
 async fn enrol_updb_then_connect() {

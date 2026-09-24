@@ -44,9 +44,6 @@
 //! ```sh
 //! sudo env ZITI_EDGE_JWT=/ruta/a/fresh.jwt \
 //!   cargo test --features intercept --test intercept_m3_routes -- --ignored --nocapture
-//! # graviola (firma el client-auth mTLS con el provider graviola):
-//! sudo env ZITI_EDGE_JWT=/ruta/a/fresh.jwt \
-//!   cargo test --features intercept,graviola --test intercept_m3_routes -- --ignored --nocapture
 //! ```
 //!
 //! Detalle del rig + pasos exactos en `docs/M3-rutas-e2e-runbook.md`.

@@ -29,9 +29,6 @@
 //! ```sh
 //! sudo env ZITI_EDGE_JWT=/ruta/a/fresh.jwt \
 //!   cargo test --features intercept --test intercept_m2b -- --ignored --nocapture
-//! # graviola (firma el client-auth mTLS con el provider graviola):
-//! sudo env ZITI_EDGE_JWT=/ruta/a/fresh.jwt \
-//!   cargo test --features intercept,graviola --test intercept_m2b -- --ignored --nocapture
 //! ```
 //!
 //! Detalle del rig + pasos exactos en `docs/M2b-e2e-runbook.md`.
