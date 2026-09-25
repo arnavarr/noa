@@ -33,6 +33,6 @@ pub mod udp;
 pub mod intercept;
 
 pub use host::{run_tcp_host, run_tcp_host_forwarding};
-pub use proxy::{run_tcp_proxy, splice};
+pub use proxy::{parse_service_port, run_tcp_proxies, run_tcp_proxy, splice};
 pub use resolve::{ResolvedTarget, resolve_target};
 pub use udp::run_udp_proxy;

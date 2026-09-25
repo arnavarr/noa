@@ -2,6 +2,8 @@
 //! Subcommands:
 //! - `enroll <token.jwt> [--out <path>] [--keyAlg RSA|EC] [--ca <ca-bundle.pem>]`
 //! - `proxy <listen_addr> <service> <identity.json>` — TCP proxy onto a ziti service (tunneler T1).
+//! - `proxy-multi <identity.json> [--bind <ip>] <service>:<port>...` — several TCP proxies with ONE
+//!   identity, like the oracle's `ziti tunnel proxy` (e.g. an in-cluster dialer).
 //! - `proxy-udp <listen_addr> <service> <identity.json>` — UDP proxy onto a ziti service (tunneler
 //!   T3): demultiplexes datagrams by source address into per-source ziti connections.
 //! - `host <service> <target_addr> <identity.json>` — host a ziti service, forward to a local TCP
@@ -25,7 +27,10 @@ use noa_sdk::enroll::csr::KeyAlg;
 use noa_sdk::enroll::error::EnrollError;
 use noa_sdk::enroll::identity::Config;
 use noa_sdk::enroll::{self, ott::EnrollOptions};
-use noa_sdk::tunnel::{run_tcp_host, run_tcp_host_forwarding, run_tcp_proxy, run_udp_proxy};
+use noa_sdk::tunnel::{
+    parse_service_port, run_tcp_host, run_tcp_host_forwarding, run_tcp_proxies, run_tcp_proxy,
+    run_udp_proxy,
+};
 use tokio::net::{TcpListener, UdpSocket};
 
 #[cfg(feature = "intercept")]
@@ -70,6 +75,13 @@ async fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Some("proxy-multi") => match run_proxy_multi(&args).await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
         Some("proxy-udp") => match run_proxy_udp(&args).await {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
@@ -108,7 +120,7 @@ async fn main() -> ExitCode {
         }
         _ => {
             eprintln!(
-                "usage:\n  {prog} enroll <token.jwt> [--out <path>] [--keyAlg RSA|EC] [--ca <ca-bundle.pem>]\n  {prog} proxy <listen_addr> <service> <identity.json>\n  {prog} proxy-udp <listen_addr> <service> <identity.json>\n  {prog} host <service> <target_addr> <identity.json>\n  {prog} host-forward <service> <identity.json>\n  {prog} intercept <utun-cidr> <identity.json>   (feature `intercept`, root)"
+                "usage:\n  {prog} enroll <token.jwt> [--out <path>] [--keyAlg RSA|EC] [--ca <ca-bundle.pem>]\n  {prog} proxy <listen_addr> <service> <identity.json>\n  {prog} proxy-multi <identity.json> [--bind <ip>] <service>:<port>...\n  {prog} proxy-udp <listen_addr> <service> <identity.json>\n  {prog} host <service> <target_addr> <identity.json>\n  {prog} host-forward <service> <identity.json>\n  {prog} intercept <utun-cidr> <identity.json>   (feature `intercept`, root)"
             );
             ExitCode::FAILURE
         }
@@ -378,6 +390,55 @@ async fn run_proxy(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let service = service.clone();
     tokio::task::LocalSet::new()
         .run_until(run_tcp_proxy(client, listener, service))
+        .await?;
+    Ok(())
+}
+
+/// `noa proxy-multi <identity.json> [--bind <ip>] <service>:<port>...`: one TCP listener per
+/// `<service>:<port>` on `--bind` (default `0.0.0.0`, the in-cluster dialer is reached through a
+/// Service), all spliced onto their ziti service with ONE identity ([`run_tcp_proxies`]). The first
+/// authentication is retried with capped backoff (1 s .. 30 s): at the start of each cluster
+/// generation the controller may not answer yet, and a daemon should wait rather than crash-loop.
+async fn run_proxy_multi(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let prog = args.first().map_or("noa", String::as_str);
+    let usage =
+        || format!("usage: {prog} proxy-multi <identity.json> [--bind <ip>] <service>:<port>...");
+    let identity_path = args.get(2).ok_or_else(usage)?;
+    let mut bind = "0.0.0.0".to_string();
+    let mut specs = Vec::new();
+    let mut rest = args.iter().skip(3);
+    while let Some(a) = rest.next() {
+        if a == "--bind" {
+            bind = rest.next().ok_or_else(usage)?.clone();
+        } else {
+            specs.push(parse_service_port(a)?);
+        }
+    }
+    if specs.is_empty() {
+        return Err(usage().into());
+    }
+    let cfg: Config = serde_json::from_str(&std::fs::read_to_string(identity_path)?)?;
+    let mut client = EdgeClient::from_identity(&cfg)?;
+    let mut wait = std::time::Duration::from_secs(1);
+    while let Err(e) = client.authenticate().await {
+        eprintln!(
+            "proxy-multi: autenticación fallida ({e}); reintento en {}s",
+            wait.as_secs()
+        );
+        tokio::time::sleep(wait).await;
+        wait = (wait * 2).min(std::time::Duration::from_secs(30));
+    }
+    let mut bindings = Vec::new();
+    for (service, port) in specs {
+        let listener = TcpListener::bind((bind.as_str(), port)).await?;
+        println!(
+            "proxy-multi: listening on {} -> ziti service '{service}'",
+            listener.local_addr()?
+        );
+        bindings.push((listener, service));
+    }
+    tokio::task::LocalSet::new()
+        .run_until(run_tcp_proxies(Rc::new(client), bindings))
         .await?;
     Ok(())
 }

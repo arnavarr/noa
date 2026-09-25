@@ -177,6 +177,51 @@ async fn handle_conn(client: &EdgeClient, service: &str, sock: TcpStream, peer: 
     }
 }
 
+/// Parse one `<service>:<port>` mapping of `noa proxy-multi` (same shape as the oracle CLI's
+/// `ziti tunnel proxy <service>:<port>...`). Splits on the LAST `:` so a service name that itself
+/// contains `:` still parses; the port must be a non-zero `u16`.
+///
+/// # Errors
+/// A human-readable message if the spec has no `:`, an empty service name or an invalid port.
+pub fn parse_service_port(spec: &str) -> Result<(String, u16), String> {
+    let (service, port) = spec
+        .rsplit_once(':')
+        .ok_or_else(|| format!("'{spec}': se esperaba <servicio>:<puerto>"))?;
+    if service.is_empty() {
+        return Err(format!("'{spec}': nombre de servicio vacío"));
+    }
+    match port.parse::<u16>() {
+        Ok(p) if p != 0 => Ok((service.to_string(), p)),
+        _ => Err(format!("'{spec}': puerto inválido '{port}'")),
+    }
+}
+
+/// Run one [`run_tcp_proxy`] accept loop per `(listener, service)` binding, all sharing ONE
+/// authenticated `client` (one identity, one API session, one connection pool), like the oracle's
+/// multi-service `ziti tunnel proxy`. MUST be driven inside a `tokio::task::LocalSet` (see
+/// [`run_tcp_proxy`]).
+///
+/// Returns as soon as ANY listener's loop ends: a proxy that silently lost one of its services is
+/// worse than one that exits and gets restarted by its supervisor (the Kubernetes Deployment of the
+/// in-cluster dialer). Dropping the set aborts the remaining loops.
+///
+/// # Errors
+/// The first listener `accept` error.
+pub async fn run_tcp_proxies(
+    client: Rc<EdgeClient>,
+    bindings: Vec<(TcpListener, String)>,
+) -> io::Result<()> {
+    let mut set = tokio::task::JoinSet::new();
+    for (listener, service) in bindings {
+        set.spawn_local(run_tcp_proxy(Rc::clone(&client), listener, service));
+    }
+    match set.join_next().await {
+        Some(Ok(res)) => res,
+        Some(Err(e)) => Err(io::Error::other(e)),
+        None => Ok(()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -415,5 +460,21 @@ mod tests {
             0,
             "deregistered exactly once even on a hard error"
         );
+    }
+
+    #[test]
+    fn parse_service_port_accepts_oracle_shape() {
+        assert_eq!(
+            parse_service_port("git-http:3000"),
+            Ok(("git-http".into(), 3000))
+        );
+        assert_eq!(parse_service_port("a:b:2222"), Ok(("a:b".into(), 2222)));
+    }
+
+    #[test]
+    fn parse_service_port_rejects_malformed() {
+        for bad in ["git-http", ":3000", "svc:", "svc:0", "svc:70000", "svc:x"] {
+            assert!(parse_service_port(bad).is_err(), "{bad} debería rechazarse");
+        }
     }
 }

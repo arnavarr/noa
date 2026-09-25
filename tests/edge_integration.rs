@@ -170,13 +170,22 @@ async fn enrol_then_dial() {
     let mut client = EdgeClient::from_identity(&cfg).expect("mTLS client builds");
     client.authenticate().await.expect("authenticate succeeds");
 
-    // Select a PLAINTEXT (encryptionRequired=false), Dial-able service. Dialing the
-    // encrypted testsvc without a public key would fail with EncryptionDataMissing.
+    // Select the PLAINTEXT (encryptionRequired=false), Dial-able fixture service BY NAME. Dialing the
+    // encrypted testsvc without a public key would fail with EncryptionDataMissing, and picking "the
+    // first" plaintext service is not deterministic: the controller lists services by id, which is
+    // random, so it could pick one without a terminator (e.g. fwdsvc) and fail with "has no
+    // terminators".
     let services = client.list_services().await.expect("list services");
     let svc = services
         .iter()
-        .find(|s| !s.encryption_required && s.permissions.iter().any(|p| p == "Dial"))
-        .expect("a plaintext (encryptionRequired=false) Dial service exists (testsvc-noenc)");
+        .find(|s| {
+            s.name == "testsvc-noenc"
+                && !s.encryption_required
+                && s.permissions.iter().any(|p| p == "Dial")
+        })
+        .expect(
+            "the plaintext Dial fixture service testsvc-noenc exists (scripts/rig-fixtures.sh)",
+        );
     println!("dialing plaintext service '{}'", svc.name);
 
     let detail = client

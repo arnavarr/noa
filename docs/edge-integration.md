@@ -358,3 +358,17 @@ ZITI_EDGE_JWT=/tmp/s8-conn-d.jwt \
 ```
 
 Salida esperada de los serve: `slice 8 CallerId OK (plaintext|encrypted): host saw dialer 'Some("s8-dialer-…")'`.
+
+## Rig en una VM Linux
+
+En una VM Linux limpia (root + Docker, sin OrbStack) la rig completa se levanta con
+**`bash scripts/rig-cloud.sh up`** (`status` la mide, `down [--purge]` la baja). Arranca `dockerd`
+si hace falta, levanta `ziti-ctrl` (:1280, admin/admin), `ziti-router-er1` (`--tunneler-enabled`)
+y `echo4b` (:19009) con las imágenes `openziti/ziti-controller`/`openziti/ziti-router` en la
+versión del oráculo (v2.0.0), extrae el CLI `ziti` de la misma imagen del controller, y repone de
+forma idempotente las fixtures que la suite presupone: `erp-all`/`serp-all`/`dial-all`,
+`testsvc`/`testsvc-noenc` (+ `bind-enc`/`bind-noenc` a `@er1`), la familia `fwdsvc*` (Bind a
+`#t4bhost`) y las 6 de `scripts/rig-fixtures.sh`. Termina verificando los terminators de er1 **por
+ID**. Todos los contenedores usan `--network host` (el router alcanza `localhost:1280` y el eco en
+`localhost:19009`). No monta los fixtures de un solo test (CA `ottca`, identidades `updb`, MFA,
+ext-jwt): sus recetas siguen junto a cada test en `tests/edge_integration.rs`.
