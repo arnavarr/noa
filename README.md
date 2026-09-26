@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/noa.png" alt="Noa, the rabbit the project is named after" width="200">
+</p>
+
 # noa-sdk
 
 An independent Rust reimplementation of the [OpenZiti](https://openziti.io) edge client SDK,
